@@ -3,114 +3,67 @@ set -e
 
 echo "=== Installing Custom Nodes ==="
 
-COMFYUI_DIR="${COMFYUI_DIR:-/workspace/rundpod-slim/ComfyUI}"
+COMFYUI_DIR="${COMFYUI_DIR:-/workspace/ComfyUI}"
 CUSTOM_NODES_DIR="$COMFYUI_DIR/custom_nodes"
 
 # Create custom_nodes directory if it doesn't exist
 mkdir -p "$CUSTOM_NODES_DIR"
 cd "$CUSTOM_NODES_DIR"
 
+# Helper function to install a node if it doesn't exist
+install_node() {
+    local repo_url="$1"
+    local node_name=$(basename "$repo_url" .git)
+    local install_deps="${2:-false}"
+    local extra_setup="${3:-}"
+    
+    if [ -d "$node_name" ]; then
+        echo "✓ $node_name already installed, skipping..."
+        return 0
+    fi
+    
+    echo "Installing $node_name..."
+    if git clone "$repo_url" 2>/dev/null; then
+        if [ "$install_deps" = "true" ] && [ -f "$node_name/requirements.txt" ]; then
+            cd "$node_name"
+            pip3 install --no-cache-dir -r requirements.txt || true
+            cd ..
+        fi
+        
+        if [ -n "$extra_setup" ]; then
+            cd "$node_name"
+            eval "$extra_setup" || true
+            cd ..
+        fi
+        
+        echo "✓ $node_name installed"
+    else
+        echo "⚠️  Failed to install $node_name"
+    fi
+}
+
 # Core Management
-echo "Installing ComfyUI-Manager..."
-git clone https://github.com/ltdrdata/ComfyUI-Manager.git
+install_node "https://github.com/ltdrdata/ComfyUI-Manager.git"
+install_node "https://github.com/Fannovel16/comfyui_controlnet_aux.git" "true"
+install_node "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git" "true" "git submodule update --init --recursive"
+install_node "https://github.com/ltdrdata/ComfyUI-Inspire-Pack.git" "true"
+install_node "https://github.com/cubiq/ComfyUI_IPAdapter_plus.git"
+install_node "https://github.com/WASasquatch/was-node-suite-comfyui.git" "true"
+install_node "https://github.com/cubiq/ComfyUI_essentials.git" "true"
+install_node "https://github.com/rgthree/rgthree-comfy.git"
+install_node "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git"
+install_node "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git" "true"
+install_node "https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet.git"
+install_node "https://github.com/jags111/efficiency-nodes-comfyui.git"
+install_node "https://github.com/BlenderNeko/ComfyUI_Cutoff.git"
+install_node "https://github.com/BlenderNeko/ComfyUI_Noise.git"
+install_node "https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git"
+install_node "https://github.com/Gourieff/comfyui-reactor-node.git" "true"
+install_node "https://github.com/receyuki/comfyui-prompt-reader-node.git" "true" "git submodule update --init --recursive"
+install_node "https://github.com/city96/ComfyUI-GGUF.git" "true"
+install_node "https://github.com/cubiq/ComfyUI_InstantID.git" "true"
+install_node "https://github.com/kijai/ComfyUI-Florence2.git" "true"
+install_node "https://github.com/chengzeyi/ParaAttention.git" "true" "if [ ! -f __init__.py ]; then echo '# ParaAttention nodes' > __init__.py; fi"
 
-echo "Installing ControlNet Auxiliary Preprocessors..."
-git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git && \
-    cd comfyui_controlnet_aux && \
-    pip3 install --no-cache-dir -r requirements.txt && \
-    cd ..
-
-echo "Installing ComfyUI Impact Pack..."
-git clone https://github.com/ltdrdata/ComfyUI-Impact-Pack.git && \
-    cd ComfyUI-Impact-Pack && \
-    git submodule update --init --recursive && \
-    pip3 install --no-cache-dir -r requirements.txt && \
-    cd ..
-
-echo "Installing ComfyUI Inspire Pack..."
-git clone https://github.com/ltdrdata/ComfyUI-Inspire-Pack.git && \
-    cd ComfyUI-Inspire-Pack && \
-    pip3 install --no-cache-dir -r requirements.txt && \
-    cd ..
-
-echo "Installing IPAdapter Plus..."
-git clone https://github.com/cubiq/ComfyUI_IPAdapter_plus.git
-
-echo "Installing WAS Node Suite..."
-git clone https://github.com/WASasquatch/was-node-suite-comfyui.git && \
-    cd was-node-suite-comfyui && \
-    pip3 install --no-cache-dir -r requirements.txt && \
-    cd ..
-
-echo "Installing ComfyUI Essentials..."
-git clone https://github.com/cubiq/ComfyUI_essentials.git && \
-    cd ComfyUI_essentials && \
-    pip3 install --no-cache-dir -r requirements.txt && \
-    cd ..
-
-echo "Installing rgthree's ComfyUI Nodes..."
-git clone https://github.com/rgthree/rgthree-comfy.git
-
-echo "Installing ComfyUI-AnimateDiff-Evolved..."
-git clone https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git
-
-echo "Installing ComfyUI-VideoHelperSuite..."
-git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git && \
-    cd ComfyUI-VideoHelperSuite && \
-    pip3 install --no-cache-dir -r requirements.txt && \
-    cd ..
-
-echo "Installing ComfyUI-Advanced-ControlNet..."
-git clone https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet.git
-
-echo "Installing Efficiency Nodes..."
-git clone https://github.com/jags111/efficiency-nodes-comfyui.git
-
-echo "Installing ComfyUI Cutoff..."
-git clone https://github.com/BlenderNeko/ComfyUI_Cutoff.git
-
-echo "Installing ComfyUI Noise..."
-git clone https://github.com/BlenderNeko/ComfyUI_Noise.git
-
-echo "Installing Ultimate SD Upscale..."
-git clone https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git
-
-echo "Installing Reactor Node (face swap)..."
-git clone https://github.com/Gourieff/comfyui-reactor-node.git && \
-    cd comfyui-reactor-node && \
-    pip3 install --no-cache-dir -r requirements.txt || true && \
-    cd ..
-
-echo "Installing ComfyUI Prompt Reader..."
-git clone --recursive https://github.com/receyuki/comfyui-prompt-reader-node.git && \
-    cd comfyui-prompt-reader-node && \
-    git submodule update --init --recursive && \
-    pip3 install --no-cache-dir -r requirements.txt || true && \
-    cd ..
-
-echo "Installing ComfyUI-GGUF..."
-git clone https://github.com/city96/ComfyUI-GGUF.git && \
-    cd ComfyUI-GGUF && \
-    pip3 install --no-cache-dir -r requirements.txt || true && \
-    cd ..
-
-echo "Installing ComfyUI_InstantID..."
-git clone https://github.com/cubiq/ComfyUI_InstantID.git && \
-    cd ComfyUI_InstantID && \
-    pip3 install --no-cache-dir -r requirements.txt || true && \
-    cd ..
-
-echo "Installing ComfyUI-Florence2..."
-git clone https://github.com/kijai/ComfyUI-Florence2.git && \
-    cd ComfyUI-Florence2 && \
-    pip3 install --no-cache-dir -r requirements.txt || true && \
-    cd ..
-
-echo "Installing ParaAttention..."
-git clone https://github.com/chengzeyi/ParaAttention.git && \
-    cd ParaAttention && \
-    if [ ! -f __init__.py ]; then echo '# ParaAttention nodes' > __init__.py; fi && \
-    pip3 install --no-cache-dir -r requirements.txt || true && \
-    cd ..
-
+echo ""
 echo "✓ Custom nodes installation complete"

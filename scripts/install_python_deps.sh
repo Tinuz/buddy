@@ -3,9 +3,24 @@ set -e
 
 echo "=== Installing Python Dependencies ==="
 
+# Check if main packages are already installed
+check_installed() {
+    python3 -c "import $1" 2>/dev/null && return 0 || return 1
+}
+
+# Quick check for key packages
+if check_installed "insightface" && check_installed "ultralytics" && check_installed "segment_anything"; then
+    echo "✓ Main dependencies already installed, checking for updates..."
+    INSTALL_MODE="--upgrade --upgrade-strategy only-if-needed"
+else
+    echo "Installing dependencies for the first time..."
+    INSTALL_MODE=""
+fi
+
 # Install additional dependencies for custom nodes
 # Note: onnxruntime-gpu is only available on x86_64, will be skipped on ARM64
-pip3 install --no-cache-dir \
+echo "Installing core dependencies..."
+pip3 install $INSTALL_MODE \
     onnxruntime \
     opencv-python \
     scikit-image \
@@ -19,10 +34,12 @@ pip3 install --no-cache-dir \
     segment_anything
 
 # Try to install GPU version of onnxruntime
-pip3 install --no-cache-dir onnxruntime-gpu || echo "onnxruntime-gpu not available on this platform, using CPU version"
+echo "Checking for GPU runtime..."
+pip3 install $INSTALL_MODE onnxruntime-gpu || echo "⚠️  onnxruntime-gpu not available on this platform, using CPU version"
 
 # Install insightface separately with all its dependencies
-pip3 install --no-cache-dir \
+echo "Installing insightface dependencies..."
+pip3 install $INSTALL_MODE \
     numpy \
     onnx \
     tqdm \
@@ -34,8 +51,8 @@ pip3 install --no-cache-dir \
     easydict \
     cython \
     albumentations \
-    prettytable
+    prettytable \
+    insightface
 
-pip3 install --no-cache-dir insightface
-
+echo ""
 echo "✓ Python dependencies installation complete"
