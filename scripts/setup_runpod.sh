@@ -181,6 +181,39 @@ fi
 echo "✅ Models downloaded successfully"
 echo ""
 
+# Step 3.5: Download workflows for this model pack
+WORKFLOWS_DIR="$COMFYUI_DIR/user/default/workflows"
+mkdir -p "$WORKFLOWS_DIR"
+
+echo "📥 Downloading workflows for $MODEL_PACK..."
+
+# Map model packs to their workflows
+case "$MODEL_PACK" in
+    wan22)
+        echo "  → Downloading WAN 2.2 text-to-image workflow..."
+        if command -v wget &> /dev/null; then
+            wget -q -O "$WORKFLOWS_DIR/wan22_text_to_image.json" "$GITHUB_RAW_BASE/../workflows/wan22_text_to_image.json" || echo "  ⚠️  Failed to download workflow"
+        else
+            curl -sSL -o "$WORKFLOWS_DIR/wan22_text_to_image.json" "$GITHUB_RAW_BASE/../workflows/wan22_text_to_image.json" || echo "  ⚠️  Failed to download workflow"
+        fi
+        ;;
+    flux-dev|flux-schnell)
+        echo "  → FLUX workflows coming soon..."
+        ;;
+    sdxl|sdxl-biglove)
+        echo "  → SDXL workflows coming soon..."
+        ;;
+    qwen-image)
+        echo "  → Qwen Image workflows coming soon..."
+        ;;
+    *)
+        echo "  → No specific workflows for $MODEL_PACK"
+        ;;
+esac
+
+echo "✅ Workflows ready"
+echo ""
+
 # Step 4: Install Python dependencies (optional)
 if [ "$INSTALL_DEPS" = true ]; then
     echo "📦 Installing Python dependencies..."
