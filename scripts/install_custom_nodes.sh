@@ -3,7 +3,12 @@ set -e
 
 echo "=== Installing Custom Nodes ==="
 
-cd /workspace/ComfyUI/custom_nodes
+COMFYUI_DIR="${COMFYUI_DIR:-/workspace/rundpod-slim/ComfyUI}"
+CUSTOM_NODES_DIR="$COMFYUI_DIR/custom_nodes"
+
+# Create custom_nodes directory if it doesn't exist
+mkdir -p "$CUSTOM_NODES_DIR"
+cd "$CUSTOM_NODES_DIR"
 
 # Core Management
 echo "Installing ComfyUI-Manager..."

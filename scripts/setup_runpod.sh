@@ -14,9 +14,10 @@ echo "=================================="
 echo ""
 
 # Configuration
-COMFYUI_DIR="${COMFYUI_DIR:-/workspace/ComfyUI}"
+COMFYUI_DIR="${COMFYUI_DIR:-/workspace/runpod-slim/ComfyUI}"
 MODEL_DIR="${MODEL_DIR:-/workspace/models}"
 SCRIPT_DIR="/tmp/buddy-scripts"
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 GITHUB_RAW_BASE="https://raw.githubusercontent.com/Tinuz/buddy/main/scripts"
 INSTALL_NODES=false
 INSTALL_DEPS=false
@@ -119,16 +120,42 @@ SCRIPTS=(
 
 for script in "${SCRIPTS[@]}"; do
     echo "  → Downloading $script..."
-    if command -v wget &> /dev/null; then
-        wget -q -O "$SCRIPT_DIR/$script" "$GITHUB_RAW_BASE/$script" || {
-            echo "  ✗ Failed to download $script"
-            exit 1
-        }
+    
+    # Build download command with optional GitHub token for private repos
+    if [ -n "$GITHUB_TOKEN" ]; then
+        AUTH_HEADER="Authorization: token $GITHUB_TOKEN"
     else
-        curl -sSL -o "$SCRIPT_DIR/$script" "$GITHUB_RAW_BASE/$script" || {
-            echo "  ✗ Failed to download $script"
-            exit 1
-        }
+        AUTH_HEADER=""
+    fi
+    
+    if command -v wget &> /dev/null; then
+        if [ -n "$GITHUB_TOKEN" ]; then
+            wget -q --header="$AUTH_HEADER" -O "$SCRIPT_DIR/$script" "$GITHUB_RAW_BASE/$script" || {
+                echo "  ✗ Failed to download $script"
+                echo "  Note: For private repos, set GITHUB_TOKEN environment variable"
+                exit 1
+            }
+        else
+            wget -q -O "$SCRIPT_DIR/$script" "$GITHUB_RAW_BASE/$script" || {
+                echo "  ✗ Failed to download $script"
+                echo "  Note: For private repos, set GITHUB_TOKEN environment variable"
+                exit 1
+            }
+        fi
+    else
+        if [ -n "$GITHUB_TOKEN" ]; then
+            curl -sSL -H "$AUTH_HEADER" -o "$SCRIPT_DIR/$script" "$GITHUB_RAW_BASE/$script" || {
+                echo "  ✗ Failed to download $script"
+                echo "  Note: For private repos, set GITHUB_TOKEN environment variable"
+                exit 1
+            }
+        else
+            curl -sSL -o "$SCRIPT_DIR/$script" "$GITHUB_RAW_BASE/$script" || {
+                echo "  ✗ Failed to download $script"
+                echo "  Note: For private repos, set GITHUB_TOKEN environment variable"
+                exit 1
+            }
+        fi
     fi
     chmod +x "$SCRIPT_DIR/$script"
     echo "  ✓ Downloaded $script"
@@ -158,6 +185,7 @@ echo ""
 if [ "$INSTALL_DEPS" = true ]; then
     echo "📦 Installing Python dependencies..."
     cd "$COMFYUI_DIR"
+    export COMFYUI_DIR="$COMFYUI_DIR"
     bash "$SCRIPT_DIR/install_python_deps.sh"
     
     if [ $? -ne 0 ]; then
@@ -172,7 +200,7 @@ fi
 # Step 5: Install custom nodes (optional)
 if [ "$INSTALL_NODES" = true ]; then
     echo "🔌 Installing custom ComfyUI nodes..."
-    cd "$COMFYUI_DIR"
+    export COMFYUI_DIR="$COMFYUI_DIR"
     bash "$SCRIPT_DIR/install_custom_nodes.sh"
     
     if [ $? -ne 0 ]; then
