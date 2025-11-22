@@ -113,6 +113,7 @@ echo "📥 Downloading project scripts from GitHub..."
 mkdir -p "$SCRIPT_DIR"
 
 SCRIPTS=(
+    "update_comfyui.sh"
     "download_models.py"
     "install_custom_nodes.sh"
     "install_python_deps.sh"
@@ -164,11 +165,21 @@ done
 echo "✅ Scripts downloaded successfully"
 echo ""
 
-# Step 2: Install required Python packages for download_models.py
+# Step 2: Update ComfyUI to latest version
+if [ -d "$COMFYUI_DIR" ]; then
+    echo "🔄 Updating ComfyUI to latest version..."
+    export COMFYUI_DIR="$COMFYUI_DIR"
+    bash "$SCRIPT_DIR/update_comfyui.sh" || {
+        echo "⚠️  Warning: ComfyUI update failed, continuing with setup..."
+    }
+    echo ""
+fi
+
+# Step 3: Install required Python packages for download_models.py
 echo "📦 Installing required Python packages..."
 pip3 install --quiet requests tqdm python-dotenv
 
-# Step 3: Download models
+# Step 4: Download models
 echo "📥 Downloading model pack: $MODEL_PACK"
 export MODEL_DIR="$MODEL_DIR"
 python3 "$SCRIPT_DIR/download_models.py" "$MODEL_PACK"
@@ -181,7 +192,7 @@ fi
 echo "✅ Models downloaded successfully"
 echo ""
 
-# Step 3.5: Download workflows for this model pack
+# Step 5: Download workflows for this model pack
 WORKFLOWS_DIR="$COMFYUI_DIR/user/default/workflows"
 mkdir -p "$WORKFLOWS_DIR"
 
@@ -214,7 +225,29 @@ esac
 echo "✅ Workflows ready"
 echo ""
 
-# Step 4: Install Python dependencies (optional)
+# Step 6: Merge models to ComfyUI directory
+echo "📦 Merging models to ComfyUI directory..."
+
+if [ -d "$MODEL_DIR" ] && [ -d "$COMFYUI_DIR/models" ]; then
+    echo "  → Merging $MODEL_DIR to $COMFYUI_DIR/models"
+    
+    # Check if rsync is available, fallback to cp
+    if command -v rsync &> /dev/null; then
+        rsync -av "$MODEL_DIR/" "$COMFYUI_DIR/models/" 2>&1 | grep -v "sending incremental file list" | grep -v "^$" || true
+        echo "  ✓ Models merged with rsync"
+    else
+        echo "  ⚠️  rsync not found, using cp (slower)..."
+        cp -rn "$MODEL_DIR/"* "$COMFYUI_DIR/models/" 2>/dev/null || true
+        echo "  ✓ Models copied"
+    fi
+    
+    echo "✅ Models merged to ComfyUI directory"
+else
+    echo "  ⚠️  Model or ComfyUI directory not found, skipping merge"
+fi
+echo ""
+
+# Step 7: Install Python dependencies (optional)
 if [ "$INSTALL_DEPS" = true ]; then
     echo "📦 Installing Python dependencies..."
     cd "$COMFYUI_DIR"
@@ -230,7 +263,7 @@ if [ "$INSTALL_DEPS" = true ]; then
     echo ""
 fi
 
-# Step 5: Install custom nodes (optional)
+# Step 8: Install custom nodes (optional)
 if [ "$INSTALL_NODES" = true ]; then
     echo "🔌 Installing custom ComfyUI nodes..."
     export COMFYUI_DIR="$COMFYUI_DIR"
@@ -245,7 +278,7 @@ if [ "$INSTALL_NODES" = true ]; then
     echo ""
 fi
 
-# Step 6: Cleanup
+# Step 9: Cleanup
 echo "🧹 Cleaning up..."
 rm -rf "$SCRIPT_DIR"
 echo "✅ Cleanup complete"
