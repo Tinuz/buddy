@@ -206,6 +206,10 @@ if [ -d "$COMFYUI_DIR" ]; then
     if python3 -c "import sageattention" 2>/dev/null; then
         echo "  ✓ SageAttention already installed"
     else
+        # Install required build dependencies
+        echo "  → Installing build dependencies..."
+        apt-get update -qq && apt-get install -y -qq libcusparse-dev-12-4 || echo "  ⚠️  Could not install cusparse, may already be present"
+        
         SAGEATTENTION_DIR="/tmp/SageAttention"
         if [ -d "$SAGEATTENTION_DIR" ]; then
             rm -rf "$SAGEATTENTION_DIR"
@@ -218,13 +222,23 @@ if [ -d "$COMFYUI_DIR" ]; then
         if [ -d "$SAGEATTENTION_DIR" ]; then
             cd "$SAGEATTENTION_DIR"
             
+            # Set CUDA paths explicitly
+            export CUDA_HOME=/usr/local/cuda
+            export PATH=$CUDA_HOME/bin:$PATH
+            export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+            export CPATH=$CUDA_HOME/include:$CPATH
+            
             # Set build optimization flags
             export EXT_PARALLEL=4
-            export NVCC_APPEND_FLAGS="--threads 8"
             export MAX_JOBS=32
+            # Remove problematic --threads flag from NVCC
+            export TORCH_CUDA_ARCH_LIST="8.9"  # RTX 4090/5090
             
             echo "  → Building SageAttention (this may take a few minutes)..."
-            python setup.py install || {
+            echo "  → Using CUDA at: $CUDA_HOME"
+            
+            # Use pip install instead of setup.py for better error handling
+            pip install -e . --no-build-isolation || {
                 echo "  ⚠️  SageAttention installation failed, continuing..."
                 cd - > /dev/null
             }
