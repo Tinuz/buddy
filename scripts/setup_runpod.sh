@@ -206,9 +206,15 @@ if [ -d "$COMFYUI_DIR" ]; then
     if python3 -c "import sageattention" 2>/dev/null; then
         echo "  ✓ SageAttention already installed"
     else
-        # Install required build dependencies
-        echo "  → Installing build dependencies..."
-        apt-get update -qq && apt-get install -y -qq libcusparse-dev-12-4 || echo "  ⚠️  Could not install cusparse, may already be present"
+        # Install required build dependencies (all CUDA dev libraries)
+        echo "  → Installing CUDA development libraries..."
+        apt-get update -qq && apt-get install -y -qq \
+            libcublas-dev-12-4 \
+            libcusparse-dev-12-4 \
+            libcusolver-dev-12-4 \
+            libcurand-dev-12-4 \
+            ninja-build \
+            || echo "  ⚠️  Could not install some CUDA libraries, may already be present"
         
         SAGEATTENTION_DIR="/tmp/SageAttention"
         if [ -d "$SAGEATTENTION_DIR" ]; then
@@ -226,26 +232,36 @@ if [ -d "$COMFYUI_DIR" ]; then
             export CUDA_HOME=/usr/local/cuda
             export PATH=$CUDA_HOME/bin:$PATH
             export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+            export LIBRARY_PATH=$CUDA_HOME/lib64:$LIBRARY_PATH
             export CPATH=$CUDA_HOME/include:$CPATH
+            export C_INCLUDE_PATH=$CUDA_HOME/include:$C_INCLUDE_PATH
+            export CPLUS_INCLUDE_PATH=$CUDA_HOME/include:$CPLUS_INCLUDE_PATH
             
             # Set build optimization flags
-            export EXT_PARALLEL=4
-            export MAX_JOBS=32
-            # Remove problematic --threads flag from NVCC
+            export MAX_JOBS=4
             export TORCH_CUDA_ARCH_LIST="8.9"  # RTX 4090/5090
+            export FORCE_CUDA=1
             
-            echo "  → Building SageAttention (this may take a few minutes)..."
+            echo "  → Building SageAttention (this may take 5-10 minutes)..."
             echo "  → Using CUDA at: $CUDA_HOME"
+            echo "  → Note: Ignoring CUDA version warnings (12.4 vs 12.9 is OK)"
             
-            # Use pip install instead of setup.py for better error handling
-            pip install -e . --no-build-isolation || {
-                echo "  ⚠️  SageAttention installation failed, continuing..."
+            # Use pip install with verbose output for debugging
+            pip install --verbose --no-cache-dir . 2>&1 | grep -v "^building\|^copying\|^creating" || {
+                echo "  ⚠️  SageAttention installation failed"
+                echo "  💡 This is optional - ComfyUI will work without it"
                 cd - > /dev/null
             }
             
             cd - > /dev/null
-            rm -rf "$SAGEATTENTION_DIR"
-            echo "  ✓ SageAttention installed from source"
+            
+            # Only remove if installation succeeded
+            if python3 -c "import sageattention" 2>/dev/null; then
+                rm -rf "$SAGEATTENTION_DIR"
+                echo "  ✓ SageAttention installed successfully"
+            else
+                echo "  ⚠️  SageAttention installation incomplete, keeping source at $SAGEATTENTION_DIR for debugging"
+            fi
         fi
     fi
     
