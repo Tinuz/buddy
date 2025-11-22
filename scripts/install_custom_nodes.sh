@@ -64,6 +64,8 @@ install_node "https://github.com/city96/ComfyUI-GGUF.git" "true"
 install_node "https://github.com/cubiq/ComfyUI_InstantID.git" "true"
 install_node "https://github.com/kijai/ComfyUI-Florence2.git" "true"
 install_node "https://github.com/chengzeyi/ParaAttention.git" "true" "if [ ! -f __init__.py ]; then echo '# ParaAttention nodes' > __init__.py; fi"
+install_node "https://github.com/blepping/comfyui_jankhidiffusion.git" "true"  # RES4LYF and other quality nodes
+install_node "https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git"  # Random seed and many utility nodes
 
 echo ""
 echo "✓ Custom nodes installation complete"
