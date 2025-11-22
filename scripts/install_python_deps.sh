@@ -54,14 +54,7 @@ pip3 install $INSTALL_MODE \
     prettytable \
     insightface
 
-# Install SageAttention for performance optimization
-# https://github.com/thu-ml/SageAttention
-echo "Installing SageAttention..."
-if check_installed "sageattention"; then
-    echo "✓ SageAttention already installed"
-else
-    pip3 install sageattention || echo "⚠️  SageAttention installation failed, continuing..."
-fi
-
 echo ""
 echo "✓ Python dependencies installation complete"
+echo ""
+echo "Note: PyTorch and SageAttention are installed separately by setup_runpod.sh"

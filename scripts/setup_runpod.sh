@@ -174,7 +174,77 @@ done
 echo "✅ Scripts downloaded successfully"
 echo ""
 
-# Step 2: Update ComfyUI to latest version
+# Step 2: Setup PyTorch and SageAttention in ComfyUI venv
+if [ -d "$COMFYUI_DIR" ]; then
+    echo "🔥 Installing PyTorch CUDA 12.9 in ComfyUI venv..."
+    
+    # Activate ComfyUI venv
+    VENV_PATH="$COMFYUI_DIR/venv"
+    if [ -f "$VENV_PATH/bin/activate" ]; then
+        source "$VENV_PATH/bin/activate"
+        echo "  ✓ Activated venv at $VENV_PATH"
+    else
+        echo "  ⚠️  No venv found at $VENV_PATH, using system Python"
+    fi
+    
+    # Uninstall old PyTorch
+    echo "  → Removing old PyTorch installation..."
+    pip uninstall -y torch torchvision torchaudio 2>/dev/null || true
+    pip cache purge
+    
+    # Install PyTorch CUDA 12.9
+    echo "  → Installing PyTorch with CUDA 12.9..."
+    pip install torch torchvision torchaudio triton --index-url https://download.pytorch.org/whl/cu129
+    
+    echo "  ✓ PyTorch CUDA 12.9 installed"
+    echo ""
+    
+    # Install SageAttention from source
+    echo "🚀 Installing SageAttention from source..."
+    
+    # Check if already installed
+    if python3 -c "import sageattention" 2>/dev/null; then
+        echo "  ✓ SageAttention already installed"
+    else
+        SAGEATTENTION_DIR="/tmp/SageAttention"
+        if [ -d "$SAGEATTENTION_DIR" ]; then
+            rm -rf "$SAGEATTENTION_DIR"
+        fi
+        
+        git clone https://github.com/thu-ml/SageAttention.git "$SAGEATTENTION_DIR" || {
+            echo "  ⚠️  Failed to clone SageAttention, continuing..."
+        }
+        
+        if [ -d "$SAGEATTENTION_DIR" ]; then
+            cd "$SAGEATTENTION_DIR"
+            
+            # Set build optimization flags
+            export EXT_PARALLEL=4
+            export NVCC_APPEND_FLAGS="--threads 8"
+            export MAX_JOBS=32
+            
+            echo "  → Building SageAttention (this may take a few minutes)..."
+            python setup.py install || {
+                echo "  ⚠️  SageAttention installation failed, continuing..."
+                cd - > /dev/null
+            }
+            
+            cd - > /dev/null
+            rm -rf "$SAGEATTENTION_DIR"
+            echo "  ✓ SageAttention installed from source"
+        fi
+    fi
+    
+    # Deactivate venv if we activated it
+    if [ -n "$VIRTUAL_ENV" ]; then
+        deactivate
+    fi
+    
+    echo "✅ PyTorch and SageAttention setup complete"
+    echo ""
+fi
+
+# Step 3: Update ComfyUI to latest version
 if [ -d "$COMFYUI_DIR" ]; then
     echo "🔄 Updating ComfyUI to latest version..."
     export COMFYUI_DIR="$COMFYUI_DIR"
@@ -184,11 +254,11 @@ if [ -d "$COMFYUI_DIR" ]; then
     echo ""
 fi
 
-# Step 3: Install required Python packages for download_models.py
+# Step 4: Install required Python packages for download_models.py
 echo "📦 Installing required Python packages..."
 pip3 install --quiet requests tqdm python-dotenv
 
-# Step 4: Download models
+# Step 5: Download models
 echo "📥 Downloading model pack: $MODEL_PACK"
 export MODEL_DIR="$MODEL_DIR"
 python3 "$SCRIPT_DIR/download_models.py" "$MODEL_PACK"
@@ -201,7 +271,7 @@ fi
 echo "✅ Models downloaded successfully"
 echo ""
 
-# Step 5: Download workflows for this model pack
+# Step 6: Download workflows for this model pack
 WORKFLOWS_DIR="$COMFYUI_DIR/user/default/workflows"
 mkdir -p "$WORKFLOWS_DIR"
 
@@ -234,7 +304,7 @@ esac
 echo "✅ Workflows ready"
 echo ""
 
-# Step 6: Merge models to ComfyUI directory (if needed)
+# Step 7: Merge models to ComfyUI directory (if needed)
 echo "📦 Checking model directory setup..."
 echo "  📂 Model directory: $MODEL_DIR"
 echo "  📂 ComfyUI models: $COMFYUI_DIR/models"
@@ -269,7 +339,7 @@ else
 fi
 echo ""
 
-# Step 7: Install Python dependencies (optional)
+# Step 8: Install Python dependencies (optional)
 if [ "$INSTALL_DEPS" = true ]; then
     echo "📦 Installing Python dependencies..."
     cd "$COMFYUI_DIR"
@@ -285,7 +355,7 @@ if [ "$INSTALL_DEPS" = true ]; then
     echo ""
 fi
 
-# Step 8: Install custom nodes (optional)
+# Step 9: Install custom nodes (optional)
 if [ "$INSTALL_NODES" = true ]; then
     echo "🔌 Installing custom ComfyUI nodes..."
     export COMFYUI_DIR="$COMFYUI_DIR"
@@ -300,7 +370,7 @@ if [ "$INSTALL_NODES" = true ]; then
     echo ""
 fi
 
-# Step 9: Cleanup
+# Step 10: Cleanup
 echo "🧹 Cleaning up..."
 rm -rf "$SCRIPT_DIR"
 echo "✅ Cleanup complete"
