@@ -15,7 +15,16 @@ echo ""
 
 # Configuration
 COMFYUI_DIR="${COMFYUI_DIR:-/workspace/runpod-slim/ComfyUI}"
-MODEL_DIR="${MODEL_DIR:-/workspace/models}"
+
+# Smart model directory detection:
+# If ComfyUI exists, download directly to its models folder
+# Otherwise use /workspace/models
+if [ -d "$COMFYUI_DIR/models" ]; then
+    MODEL_DIR="${MODEL_DIR:-$COMFYUI_DIR/models}"
+else
+    MODEL_DIR="${MODEL_DIR:-/workspace/models}"
+fi
+
 SCRIPT_DIR="/tmp/buddy-scripts"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 GITHUB_RAW_BASE="https://raw.githubusercontent.com/Tinuz/buddy/main/scripts"
@@ -225,25 +234,38 @@ esac
 echo "✅ Workflows ready"
 echo ""
 
-# Step 6: Merge models to ComfyUI directory
-echo "📦 Merging models to ComfyUI directory..."
+# Step 6: Merge models to ComfyUI directory (if needed)
+echo "📦 Checking model directory setup..."
+echo "  📂 Model directory: $MODEL_DIR"
+echo "  📂 ComfyUI models: $COMFYUI_DIR/models"
 
-if [ -d "$MODEL_DIR" ] && [ -d "$COMFYUI_DIR/models" ]; then
-    echo "  → Merging $MODEL_DIR to $COMFYUI_DIR/models"
+# Only merge if MODEL_DIR is different from ComfyUI models directory
+if [ "$MODEL_DIR" != "$COMFYUI_DIR/models" ]; then
+    # Create ComfyUI models directory if it doesn't exist
+    mkdir -p "$COMFYUI_DIR/models"
     
-    # Check if rsync is available, fallback to cp
-    if command -v rsync &> /dev/null; then
-        rsync -av "$MODEL_DIR/" "$COMFYUI_DIR/models/" 2>&1 | grep -v "sending incremental file list" | grep -v "^$" || true
-        echo "  ✓ Models merged with rsync"
+    if [ -d "$MODEL_DIR" ] && [ -n "$(ls -A "$MODEL_DIR" 2>/dev/null)" ]; then
+        echo "  → Merging models from $MODEL_DIR to $COMFYUI_DIR/models..."
+        
+        # Check if rsync is available, fallback to cp
+        if command -v rsync &> /dev/null; then
+            rsync -av "$MODEL_DIR/" "$COMFYUI_DIR/models/" || {
+                echo "  ⚠️  rsync failed, trying with cp..."
+                cp -rv "$MODEL_DIR/"* "$COMFYUI_DIR/models/" 2>/dev/null || true
+            }
+            echo "  ✓ Models merged with rsync"
+        else
+            echo "  ⚠️  rsync not found, using cp..."
+            cp -rv "$MODEL_DIR/"* "$COMFYUI_DIR/models/" || true
+            echo "  ✓ Models copied with cp"
+        fi
+        
+        echo "✅ Models merged to ComfyUI directory"
     else
-        echo "  ⚠️  rsync not found, using cp (slower)..."
-        cp -rn "$MODEL_DIR/"* "$COMFYUI_DIR/models/" 2>/dev/null || true
-        echo "  ✓ Models copied"
+        echo "  ℹ️  No models to merge (directory empty or doesn't exist)"
     fi
-    
-    echo "✅ Models merged to ComfyUI directory"
 else
-    echo "  ⚠️  Model or ComfyUI directory not found, skipping merge"
+    echo "  ✓ Models already in ComfyUI directory, no merge needed"
 fi
 echo ""
 
